@@ -137,6 +137,12 @@ class OscMainCommand(MainCommand):
             action="store_true",
             help="disable pager in stdout output",
         )
+        self.add_argument(
+            "--non-interactive",
+            action="store_true",
+            default=None,
+            help="fail instead of prompting for input",
+        )
 
     def post_parse_args(self, args):
         from . import conf
@@ -160,6 +166,7 @@ class OscMainCommand(MainCommand):
                 override_http_debug=args.http_debug,
                 override_http_full_debug=args.http_full_debug,
                 override_no_keyring=args.no_keyring,
+                override_non_interactive=args.non_interactive,
                 override_post_mortem=args.post_mortem,
                 override_quiet=args.quiet,
                 override_traceback=args.traceback,
@@ -169,23 +176,38 @@ class OscMainCommand(MainCommand):
             )
         except oscerr.NoConfigfile as e:
             print(e.msg, file=sys.stderr)
+            if args.non_interactive:
+                sys.exit(
+                    f"Cannot create the configuration file {e.file} in non-interactive mode. "
+                    "Create it first, e.g. by running `osc` interactively once."
+                )
             print(f"Creating osc configuration file {e.file} ...", file=sys.stderr)
             conf.interactive_config_setup(e.file, args.apiurl)
             print("done", file=sys.stderr)
             self.post_parse_args(args)
         except oscerr.ConfigMissingApiurl as e:
             print(e.msg, file=sys.stderr)
+            if args.non_interactive:
+                sys.exit(
+                    "Cannot configure the API URL in non-interactive mode. "
+                    "Add the API URL to the configuration file or pass -A/--apiurl."
+                )
             conf.interactive_config_setup(e.file, e.url, initial=False)
             self.post_parse_args(args)
         except oscerr.ConfigMissingCredentialsError as e:
             print(e.msg, file=sys.stderr)
+            if args.non_interactive:
+                sys.exit(
+                    "Cannot configure credentials in non-interactive mode. "
+                    "Add the credentials to the configuration file first."
+                )
             print("Please enter new credentials.", file=sys.stderr)
             conf.interactive_config_setup(e.file, e.url, initial=False)
             self.post_parse_args(args)
 
         # write config values back to args
         # this is crucial mainly for apiurl to resolve an alias to full url
-        for i in ["apiurl", "debug", "http_debug", "http_full_debug", "post_mortem", "traceback", "verbose"]:
+        for i in ["apiurl", "debug", "http_debug", "http_full_debug", "post_mortem", "traceback", "verbose", "non_interactive"]:
             setattr(args, i, conf.config[i])
         args.no_keyring = not conf.config["use_keyring"]
 
