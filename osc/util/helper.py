@@ -39,7 +39,21 @@ def decode_it(obj):
         return obj.decode('latin-1')
 
 
-def raw_input(*args):
+def raw_input(*args, hint=None, default=None):
+    # deferred import to avoid a circular import (osc.conf imports this module)
+    from .. import conf
+
+    if conf.config["non_interactive"]:
+        if default is not None:
+            # behave as if the user pressed Enter: the documented default
+            # (the capitalized letter in y/N or Y/n prompts) applies
+            return default
+        prompt = args[0] if args else ""
+        msg = f"input requested in non-interactive mode: {prompt!r}."
+        if hint:
+            msg += f" {hint}"
+        raise oscerr.NonInteractiveInput(msg)
+
     func = builtins.input
 
     try:
