@@ -608,6 +608,18 @@ class Options(OscOptions):
         ),
     )  # type: ignore[assignment]
 
+    non_interactive: bool = Field(
+        default=False,
+        description=textwrap.dedent(
+            """
+            Fail instead of prompting for input.
+            When a prompt cannot be answered from the options passed
+            on the command line, raise an error that names the option
+            instead of reading from stdin.
+            """
+        ),
+    )  # type: ignore[assignment]
+
     http_debug: bool = Field(
         default=False,
         description=textwrap.dedent(
@@ -1868,6 +1880,7 @@ def get_config(override_conffile=None,
                override_quiet=None,
                override_no_keyring=None,
                override_verbose=None,
+               override_non_interactive=None,
                overrides=None,
                store_dir: Optional[str] = None,
                ):
@@ -1909,6 +1922,9 @@ def get_config(override_conffile=None,
 
     if override_quiet is not None:
         overrides["quiet"] = override_quiet
+
+    if override_non_interactive is not None:
+        overrides["non_interactive"] = override_non_interactive
 
     if override_verbose is not None:
         overrides["verbose"] = override_verbose
