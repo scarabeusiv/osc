@@ -39,6 +39,48 @@ def decode_it(obj):
         return obj.decode('latin-1')
 
 
+def _is_non_interactive():
+    # deferred import to avoid a circular import (osc.conf imports this module)
+    from .. import conf
+    return conf.config["non_interactive"]
+
+
+def require_non_interactive_options(command, requirements):
+    """
+    Pre-flight check for non-interactive mode: fail before the command does
+    any work unless every option needed to answer its prompts was passed on
+    the command line. All missing options are named at once. Does nothing
+    when running interactively.
+
+    :param command: command description, e.g. "osc request accept"
+    :param requirements: iterable of (value, option_spelling) pairs; an option
+        counts as missing when its value is falsy
+    """
+    if not _is_non_interactive():
+        return
+    missing = [spelling for value, spelling in requirements if not value]
+    if missing:
+        raise oscerr.NonInteractiveInput(
+            f"prompts for {command} cannot be answered in non-interactive mode. "
+            f"Pass {' and '.join(missing)} to answer every prompt upfront."
+        )
+
+
+def refuse_non_interactive(reason, hint):
+    """
+    Pre-flight check for non-interactive mode: refuse a command (or flag
+    combination) that is inherently interactive and cannot run without
+    prompting. Does nothing when running interactively.
+
+    :param reason: what cannot be done non-interactively
+    :param hint: names what to do instead
+    """
+    if _is_non_interactive():
+        raise oscerr.NonInteractiveInput(
+            f"{reason} cannot be done in non-interactive mode. {hint}"
+        )
+
+
 def raw_input(*args, hint=None, default=None):
     # deferred import to avoid a circular import (osc.conf imports this module)
     from .. import conf
