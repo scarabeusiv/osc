@@ -45,6 +45,17 @@ def _is_non_interactive():
     return conf.config["non_interactive"]
 
 
+def raise_non_interactive(prompt, hint=None):
+    """
+    Raise oscerr.NonInteractiveInput for a prompt that cannot be answered
+    in non-interactive mode.
+    """
+    msg = f"input requested in non-interactive mode: {prompt!r}."
+    if hint:
+        msg += f" {hint}"
+    raise oscerr.NonInteractiveInput(msg)
+
+
 def require_non_interactive_options(command, requirements):
     """
     Pre-flight check for non-interactive mode: fail before the command does

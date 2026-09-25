@@ -31,6 +31,7 @@ from urllib.error import HTTPError
 from . import commands as osc_commands
 from . import oscerr
 from .commandline_common import *
+from .util import helper
 from .util.xml import xml_fromstring
 from .util.xml import xml_parse
 
@@ -2033,6 +2034,13 @@ class Osc(cmdln.Cmdln):
         from .core import store_read_project
         from .store import git_is_unsupported
 
+        # pre-flight for non-interactive mode: the message editor below always
+        # runs without -m/--message (or --file), so require one before doing
+        # any work
+        helper.require_non_interactive_options(
+            "osc submitrequest", [(opts.message or opts.file, "-m/--message or --file")]
+        )
+
         def _check_service(root):
             serviceinfo = root.find('serviceinfo')
             if serviceinfo is not None:
@@ -2701,6 +2709,10 @@ Please submit there instead, or use --nodevelproject to force direct submission.
         from .core import makeurl
         from .core import slash_split
 
+        # pre-flight for non-interactive mode: the message editor below always
+        # runs without -m/--message, so require it before doing any work
+        helper.require_non_interactive_options("osc createrequest", [(opts.message, "-m/--message")])
+
         src_update = conf.config['submitrequest_on_accept_action'] or None
         # we should check here for home:<id>:branch and default to update, but that would require OBS 1.7 server
         if opts.cleanup:
@@ -2793,6 +2805,10 @@ Please submit there instead, or use --nodevelproject to force direct submission.
         from .core import store_read_package
         from .core import store_read_project
         from .store import git_is_unsupported
+
+        # pre-flight for non-interactive mode: the message editor below always
+        # runs without -m/--message, so require it before doing any work
+        helper.require_non_interactive_options("osc requestmaintainership", [(opts.message, "-m/--message")])
 
         if len(args) <= 1:
             msg = f"Command 'osc {subcmd}' is not supported with git."
@@ -2887,6 +2903,10 @@ Please submit there instead, or use --nodevelproject to force direct submission.
         from .core import store_read_project
         from .store import git_is_unsupported
 
+        # pre-flight for non-interactive mode: the message editor below always
+        # runs without -m/--message, so require it before doing any work
+        helper.require_non_interactive_options("osc deletereq", [(opts.message, "-m/--message")])
+
         if not args:
             msg = f"Command 'osc {subcmd}' is not supported with git."
             git_is_unsupported(".", msg)
@@ -2959,6 +2979,10 @@ Please submit there instead, or use --nodevelproject to force direct submission.
         from .core import is_package_dir
         from .core import store_read_package
         from .core import store_read_project
+
+        # pre-flight for non-interactive mode: the message editor below always
+        # runs without -m/--message, so require it before doing any work
+        helper.require_non_interactive_options("osc changedevelrequest", [(opts.message, "-m/--message")])
 
         if len(args) == 0 and is_package_dir('.') and find_default_project():
             wd = Path.cwd()
@@ -3204,6 +3228,23 @@ Please submit there instead, or use --nodevelproject to force direct submission.
         del args[0]
         if cmd == 'ls':
             cmd = "list"
+
+        # pre-flight for non-interactive mode: fail before doing any work if the
+        # command cannot run without prompting; prompts caused by server state
+        # (already in target state, supersede candidates) still fail fast at
+        # the decision point via raw_input()
+        if cmd == "approvenew":
+            helper.refuse_non_interactive(
+                "'osc request approvenew' always asks for confirmation",
+                hint="Approve the requests individually, or run without --non-interactive to confirm.",
+            )
+        elif cmd == "show" and opts.edit:
+            helper.refuse_non_interactive(
+                "'osc request show --edit' opens an interactive review",
+                hint="Drop --edit to print the request non-interactively.",
+            )
+        elif cmd in ("accept", "decline", "reopen", "revoke", "wipe", "supersede"):
+            helper.require_non_interactive_options(f"osc request {cmd}", [(opts.message, "-m/--message")])
 
         apiurl = self.get_api_url()
 
@@ -5968,6 +6009,14 @@ Please submit there instead, or use --nodevelproject to force direct submission.
         from .core import store_unlink_file
         from .store import git_is_unsupported
 
+        # pre-flight for non-interactive mode: without -m/--message, --file or
+        # -n/--no-message the commit message always opens the editor, so
+        # require one of them before doing any work
+        helper.require_non_interactive_options(
+            "osc commit",
+            [(opts.message or opts.file or opts.no_message, "-m/--message, --file or -n/--no-message")],
+        )
+
         msg = f"Command 'osc {subcmd}' is not supported with git. Use 'git commit' and 'git push' instead."
         git_is_unsupported(".", msg)
 
@@ -6414,6 +6463,10 @@ Please submit there instead, or use --nodevelproject to force direct submission.
 
         from .core import delete_files
         from .core import raw_input
+
+        # pre-flight for non-interactive mode: removing without --force prompts
+        # per file, so require it before doing any work
+        helper.require_non_interactive_options("osc rremove", [(opts.force, "--force")])
 
         project = opts.project
         package = opts.package
